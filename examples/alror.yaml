@@ -1,0 +1,69 @@
+# Alror configuration. Docs: run `alror docs`.
+project: demo
+services:
+    - name: checkout-api
+      paths:
+        - services/checkout/
+      target: simulated
+      critical: true
+    - name: search-indexer
+      paths:
+        - services/search/
+      target: simulated
+    - name: notifications
+      paths:
+        - services/notifications/
+      target: simulated
+    - name: auth-gateway
+      paths:
+        - services/auth/
+      target: simulated
+      critical: true
+    - name: web-frontend
+      paths:
+        - web/
+      target: simulated
+    - name: pricing-svc
+      paths:
+        - services/pricing/
+      target: simulated
+    - name: payments-ledger
+      paths:
+        - services/ledger/
+        - migrations/ledger/
+      target: simulated
+      critical: true
+    - name: inventory-svc
+      paths:
+        - services/inventory/
+      target: simulated
+    - name: recommendations
+      paths:
+        - services/recs/
+        - ml/recs/
+      target: simulated
+    - name: api-gateway
+      paths:
+        - services/gateway/
+        - deploy/helm/gateway/
+      target: simulated
+      critical: true
+    - name: billing-worker
+      paths:
+        - services/billing/
+      target: simulated
+      critical: true
+    - name: media-transcoder
+      paths:
+        - services/media/
+      target: simulated
+metrics:
+    provider: synthetic
+policy:
+    max_regression:
+        error_rate: 0.25
+        latency_p95: 0.15
+    alpha: 0.05
+    auto_rollback: true
+    bake_scale: 0.003
+notify: {}

@@ -1,0 +1,41 @@
+# Copy to .github/workflows/alror.yml in your repository.
+name: Alror
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  risk:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write          # post the "Alror / change-risk" check run
+      pull-requests: write   # keep the sticky risk comment up to date
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # full history so the diff against the base branch is exact
+      - uses: manaskumar3003/alror-cli/actions/check@main
+        with:
+          comment: "true"
+          fail-above: "0"    # set e.g. 85 to block very risky PRs
+
+  deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # … build and push your image here …
+      - uses: manaskumar3003/alror-cli/actions/deploy@main
+        id: alror
+        with:
+          service: checkout-api
+          image: registry.example.com/checkout-api:${{ github.sha }}
+      - run: echo "Release ${{ steps.alror.outputs.deployment-id }} ended as ${{ steps.alror.outputs.status }}"

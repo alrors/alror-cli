@@ -1,0 +1,54 @@
+{
+  "name": "alror",
+  "version": "0.0.0-dev",
+  "description": "Alror CLI: risk-scored, verified progressive rollouts with automatic rollback. Ships the native Go binary.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/manaskumar3003/alror-cli#readme",
+  "bugs": {
+    "url": "https://github.com/manaskumar3003/alror-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manaskumar3003/alror-cli.git",
+    "directory": "npm/alror"
+  },
+  "keywords": [
+    "alror",
+    "deploy",
+    "deployment",
+    "canary",
+    "progressive-delivery",
+    "rollback",
+    "release",
+    "risk",
+    "cli",
+    "devops",
+    "kubernetes",
+    "ecs"
+  ],
+  "bin": {
+    "alror": "bin/alror.js",
+    "alror-docs": "bin/alror-docs.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "install.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@alror/cli-darwin-arm64": "0.0.0-dev",
+    "@alror/cli-darwin-x64": "0.0.0-dev",
+    "@alror/cli-linux-arm64": "0.0.0-dev",
+    "@alror/cli-linux-x64": "0.0.0-dev",
+    "@alror/cli-win32-arm64": "0.0.0-dev",
+    "@alror/cli-win32-x64": "0.0.0-dev"
+  }
+}

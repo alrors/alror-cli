@@ -1,0 +1,64 @@
+{
+  "name": "@alror/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Alror platform API: deployments, events, jobs and the live stream of your Alror workspace.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/manaskumar3003/alror-cli/tree/main/sdk/js#readme",
+  "bugs": {
+    "url": "https://github.com/manaskumar3003/alror-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manaskumar3003/alror-cli.git",
+    "directory": "sdk/js"
+  },
+  "keywords": [
+    "alror",
+    "sdk",
+    "deploy",
+    "deployment",
+    "canary",
+    "rollback",
+    "progressive-delivery",
+    "ci",
+    "typescript"
+  ],
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && node scripts/post-build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "pretest": "npm run build && npm run typecheck",
+    "test": "node --test",
+    "prepack": "npm run build && node scripts/copy-license.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "typescript": "~5.9.3"
+  }
+}

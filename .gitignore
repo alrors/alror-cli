@@ -1,0 +1,5 @@
+bin/
+*.exe
+.alror/
+dist/
+node_modules/

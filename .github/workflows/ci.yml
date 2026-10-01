@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Format
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - run: go vet ./...
+      - run: go test -race ./...
+        if: runner.os == 'Linux'
+      - run: go test ./...
+        if: runner.os != 'Linux'
+      - run: go build ./cmd/...
+
+  sdk-js:
+    name: "@alror/sdk (Node ${{ matrix.node }})"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22, 24]
+    defaults:
+      run:
+        working-directory: sdk/js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: sdk/js/package-lock.json
+      - run: npm ci
+      - run: npm test # build (ESM + CJS), typecheck, node:test against a fake API
+      - run: npm pack --dry-run
+
+  npm-launcher:
+    name: npm launcher smoke test (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: 0.0.0-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unit tests (launcher, postinstall fallback, release scripts)
+        working-directory: npm
+        run: npm test
+      - name: Build the CLI for this runner
+        run: go build -ldflags "-X github.com/manaskumar3003/alror-cli/internal/cli.Version=$VERSION" -o bin/ ./cmd/...
+      - name: Fake a GoReleaser dist and build the npm packages
+        run: |
+          ext=""; [ "$RUNNER_OS" = "Windows" ] && ext=".exe"
+          node npm/scripts/fake-dist.mjs --version "$VERSION" --alror "bin/alror$ext" --docs "bin/alror-docs$ext" --out dist-ci
+          key=$(node -p "process.platform + '-' + process.arch")
+          node npm/scripts/build-packages.mjs --version "$VERSION" --dist dist-ci --platforms "$key"
+      - name: npm pack, install into a fresh project and run via npx
+        run: node npm/scripts/smoke.mjs --expect-version "$VERSION"
+      - name: Show what would be published
+        run: node npm/scripts/publish.mjs --dry-run

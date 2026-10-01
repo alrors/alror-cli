@@ -1,0 +1,62 @@
+name: Alror change risk
+description: Score a pull request for release risk and post it as a check run and a sticky PR comment.
+author: Alror
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  comment:
+    description: Keep a sticky comment with the risk breakdown on the pull request.
+    default: "true"
+  fail-above:
+    description: Fail the check when the risk score is above this value (0 = advisory only).
+    default: "0"
+  working-directory:
+    description: Directory containing alror.yaml.
+    default: "."
+  version:
+    description: Alror version to install (a git tag, or "latest").
+    default: latest
+  token:
+    description: Token used to post the check run and comment.
+    default: ${{ github.token }}
+
+outputs:
+  score:
+    description: Risk score from 0 to 100.
+    value: ${{ steps.check.outputs.score }}
+  level:
+    description: low, medium or high.
+    value: ${{ steps.check.outputs.level }}
+  plan:
+    description: Rollout weights, e.g. 5,25,50,100.
+    value: ${{ steps.check.outputs.plan }}
+  conclusion:
+    description: success, neutral or failure.
+    value: ${{ steps.check.outputs.conclusion }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: stable
+        cache: false
+
+    - name: Install alror
+      shell: bash
+      run: go install github.com/manaskumar3003/alror-cli/cmd/alror@${{ inputs.version }}
+
+    - name: Score and report
+      id: check
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        NO_COLOR: "1"
+      run: |
+        args=(github check --fail-above "${{ inputs.fail-above }}")
+        if [ "${{ inputs.comment }}" = "true" ]; then args+=(--comment); fi
+        git fetch --no-tags --depth=200 origin "${GITHUB_BASE_REF:-main}" || true
+        alror "${args[@]}"

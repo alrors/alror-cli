@@ -1,0 +1,61 @@
+name: Alror deploy
+description: Run a risk-scored, verified progressive rollout and roll back automatically if the canary regresses.
+author: Alror
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  service:
+    description: Service name from alror.yaml.
+    required: true
+  image:
+    description: Image or artifact to roll out.
+    required: true
+  ref:
+    description: PR number or commit shown in history and notifications.
+    default: ${{ github.sha }}
+  working-directory:
+    description: Directory containing alror.yaml.
+    default: "."
+  shadow:
+    description: Shadow mode, which recommends rollbacks but never acts.
+    default: "false"
+  version:
+    description: Alror version to install (a git tag, or "latest").
+    default: latest
+
+outputs:
+  deployment-id:
+    description: The Alror deployment id.
+    value: ${{ steps.deploy.outputs.deployment-id }}
+  status:
+    description: promoted, rolled_back or failed.
+    value: ${{ steps.deploy.outputs.status }}
+  weight:
+    description: Canary traffic when the run ended.
+    value: ${{ steps.deploy.outputs.weight }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: stable
+        cache: false
+
+    - name: Install alror
+      shell: bash
+      run: go install github.com/manaskumar3003/alror-cli/cmd/alror@${{ inputs.version }}
+
+    - name: Deploy
+      id: deploy
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        NO_COLOR: "1"
+      run: |
+        args=(deploy -s "${{ inputs.service }}" -i "${{ inputs.image }}" --ref "${{ inputs.ref }}")
+        if [ "${{ inputs.shadow }}" = "true" ]; then args+=(--shadow); fi
+        # Exit code 2 means "rolled back": fail the job so the bad release is visible.
+        alror "${args[@]}"

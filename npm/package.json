@@ -1,0 +1,16 @@
+{
+  "name": "alror-npm-tooling",
+  "private": true,
+  "description": "Build, test and publish tooling for the alror npm packages (not published).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build-packages.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "publish:dry": "node scripts/publish.mjs --dry-run"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

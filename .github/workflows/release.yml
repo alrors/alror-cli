@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  # npm publishing is opt-in and manual: run this workflow from the Actions
+  # tab with the release tag and confirm "publish". Tag pushes never publish
+  # to npm.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish to npm (e.g. v0.1.0)"
+        required: true
+        type: string
+      confirm:
+        description: 'Type "publish" to publish the npm packages'
+        required: true
+        type: string
+      sdk:
+        description: "Also publish @alror/sdk (skipped if its version is already on npm)"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build (but do not publish) the npm packages from the release archives,
+  # and attach the launcher and SDK tarballs to the GitHub release so people
+  # can `npm i <url>` before the packages are on npm.
+  npm-packages:
+    name: npm packages (build only)
+    needs: goreleaser
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download release archives
+        run: gh release download "$TAG" --dir dist --pattern 'alror_*' --pattern checksums.txt
+      - name: Build npm packages
+        run: node npm/scripts/build-packages.mjs --version "${TAG#v}" --dist dist
+      - name: Test npm tooling
+        working-directory: npm
+        run: npm test
+      - name: Pack launcher
+        run: |
+          mkdir -p npm-tarballs
+          npm pack ./npm/out/alror --pack-destination npm-tarballs
+          for d in npm/out/cli-*/; do npm pack "$d" --dry-run; done
+      - name: Build, test and pack @alror/sdk
+        working-directory: sdk/js
+        run: |
+          npm ci
+          npm test
+          npm pack --pack-destination ../../npm-tarballs
+      - name: Attach tarballs to the GitHub release
+        run: gh release upload "$TAG" npm-tarballs/*.tgz --clobber
+
+  # Manual, opt-in npm publish. Requires the NPM_TOKEN secret.
+  publish-npm:
+    name: Publish to npm
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm == 'publish' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - name: Download release archives
+        run: gh release download "$TAG" --dir dist --pattern 'alror_*' --pattern checksums.txt
+      - name: Build npm packages
+        run: node npm/scripts/build-packages.mjs --version "${TAG#v}" --dist dist
+      - name: Publish alror and @alror/cli-* (platforms first)
+        run: node npm/scripts/publish.mjs --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Build and test @alror/sdk
+        if: ${{ inputs.sdk }}
+        working-directory: sdk/js
+        run: |
+          npm ci
+          npm test
+      - name: Publish @alror/sdk
+        if: ${{ inputs.sdk }}
+        working-directory: sdk/js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if [ "$(npm view "$name@$version" version 2>/dev/null)" = "$version" ]; then
+            echo "$name@$version is already published; skipping"
+            exit 0
+          fi
+          tag=latest
+          case "$version" in *-*) tag=next ;; esac
+          npm publish --access public --provenance --tag "$tag"
