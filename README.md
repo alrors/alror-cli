@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **This repository has moved to [alrors/alror](https://github.com/alrors/alror)**, the Alror monorepo (CLI, runner, workspace console, SDKs and self-hosting). This repo is archived. New installs: `go install github.com/alrors/alror/cmd/alror@latest`.
+
 <div align="center">
 
 <img src="docs/images/logo.svg" width="72" alt="Alror logo: a release gate with a change passing through" />
